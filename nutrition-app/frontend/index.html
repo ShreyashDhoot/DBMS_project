@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food &amp; Nutrition Database System</title>
+    <link href="style.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="notification" class="notification"></div>
+
+    <nav class="navbar">
+        <div class="navbar-brand">🍽️ Food &amp; Nutrition DB</div>
+        <div class="navbar-menu" id="navbarMenu">
+            </div>
+    </nav>
+
+    <div id="homeView" class="view active">
+        <div class="hero">
+            <h1>Food &amp; Nutrition Database System</h1>
+            <p>Track your meals, monitor nutrition, and achieve your health goals with our comprehensive Indian food database</p>
+            <div class="hero-buttons">
+                <button class="btn btn-primary" onclick="showView('register')">Sign Up</button>
+                <button class="btn btn-secondary" onclick="showView('login')">Login</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Search Indian Foods</h3>
+                    <p>Browse through 20+ popular Indian dishes with complete nutritional information</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Log Your Meals</h3>
+                    <p>Track breakfast, lunch, dinner, and snacks with customizable portions</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Track Nutrition</h3>
+                    <p>Monitor calories, protein, carbs, fat, and fiber intake daily</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Achieve Goals</h3>
+                    <p>Set daily calorie targets and track your progress visually</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 Food &amp; Nutrition Database System | Indian Institute of Technology</p>
+            <p style="margin-top: 8px;">Built with HTML, CSS, JavaScript | Database: MySQL (Simulated)</p>
+        </div>
+    </div>
+
+    <div id="registerView" class="view">
+        <div class="container">
+            <div class="form-container">
+                <h2>Create Account</h2>
+                <form id="registerForm" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" id="regUsername" required minlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="regEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" id="regPassword" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" class="form-input" id="regConfirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Register</button>
+                </form>
+                <div class="form-link">
+                    Already have an account? <a onclick="showView('login')">Login here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginView" class="view">
+        <div class="container">
+            <div class="form-container">
+                <h2>Welcome Back</h2>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Login</button>
+                </form>
+                <div class="form-link">
+                    Don't have an account? <a onclick="showView('register')">Sign up here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboardView" class="view">
+        <div class="container">
+            <div class="dashboard-header">
+                <div>
+                    <h1>Welcome, <span id="userName"></span>! 👋</h1>
+                    <p style="color: var(--color-text-secondary); margin-top: 8px;" id="currentDate"></p>
+                </div>
+                <button class="btn btn-secondary" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Calories</div>
+                    <div class="stat-value"><span id="totalCalories">0</span> <span class="stat-unit">kcal</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Protein</div>
+                    <div class="stat-value"><span id="totalProtein">0</span> <span class="stat-unit">g</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Carbohydrates</div>
+                    <div class="stat-value"><span id="totalCarbs">0</span> <span class="stat-unit">g</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Fat</div>
+                    <div class="stat-value"><span id="totalFat">0</span> <span class="stat-unit">g</span></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Daily Calorie Goal</h3>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Progress</span>
+                        <span><span id="calorieProgress">0</span>%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%">
+                            <span id="progressText"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Log a Meal</h3>
+                <form onsubmit="handleMealLog(event)">
+                    <div class="meal-logger-form">
+                        <div class="search-container">
+                            <input 
+                                type="text" 
+                                class="form-input" 
+                                id="foodSearch" 
+                                placeholder="Search food..." 
+                                autocomplete="off"
+                                oninput="handleFoodSearch(this.value)"
+                            >
+                            <div id="searchResults" class="search-results" style="display: none;"></div>
+                        </div>
+                        <select class="form-input" id="mealType" required>
+                            <option value="">Meal Type</option>
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                            <option value="snacks">Snacks</option>
+                        </select>
+                        <input 
+                            type="number" 
+                            class="form-input" 
+                            id="quantity" 
+                            placeholder="Servings" 
+                            min="0.1" 
+                            step="0.1" 
+                            required
+                        >
+                        <button type="submit" class="btn btn-primary">Log Meal</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Today's Meals</h3>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Food</th>
+                                <th>Meal Type</th>
+                                <th>Servings</th>
+                                <th>Calories</th>
+                                <th>Protein</th>
+                                <th>Carbs</th>
+                                <th>Fat</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mealsTableBody">
+                            <tr>
+                                <td colspan="9" class="empty-state">No meals logged today. Start tracking your nutrition!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Calorie Breakdown by Meal Type</h3>
+                <div class="chart-container">
+                    <div class="bar-chart" id="calorieChart">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="searchView" class="view">
+        <div class="container">
+            <h1 style="margin-bottom: 24px;">Browse Food Database</h1>
+            
+            <div class="section" style="margin-bottom: 24px;">
+                <input 
+                    type="text" 
+                    class="form-input" 
+                    id="foodSearchPage" 
+                    placeholder="Search food items..." 
+                    oninput="filterFoods()"
+                    style="margin-bottom: 16px;"
+                >
+                
+                <div class="filters">
+                    <button class="filter-btn active" onclick="filterByRegion('All')">All Regions</button>
+                    <button class="filter-btn" onclick="filterByRegion('North')">North Indian</button>
+                    <button class="filter-btn" onclick="filterByRegion('South')">South Indian</button>
+                    <button class="filter-btn" onclick="filterByRegion('East')">East Indian</button>
+                    <button class="filter-btn" onclick="filterByRegion('West')">West Indian</button>
+                </div>
+            </div>
+
+            <div class="food-grid" id="foodGrid">
+                </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
