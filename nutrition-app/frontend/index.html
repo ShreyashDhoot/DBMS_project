@@ -114,7 +114,12 @@
             <div class="dashboard-header">
                 <div>
                     <h1>Welcome, <span id="userName"></span>! 👋</h1>
-                    <p style="color: var(--color-text-secondary); margin-top: 8px;" id="currentDate"></p>
+                    <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+                        <button class="btn btn-secondary" onclick="navigatePreviousDay()" style="padding: 8px 12px;">← Previous</button>
+                        <p style="color: var(--color-text-secondary); margin: 0;" id="currentDate"></p>
+                        <button class="btn btn-secondary" onclick="navigateNextDay()" id="nextDayBtn" style="padding: 8px 12px;">Next →</button>
+                        <button class="btn btn-primary" onclick="goToToday()" style="padding: 8px 12px;">📅 Today</button>
+                    </div>
                 </div>
                 <button class="btn btn-secondary" onclick="handleLogout()">Logout</button>
             </div>
@@ -220,6 +225,156 @@
                 <div class="chart-container">
                     <div class="bar-chart" id="calorieChart">
                         </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileSetupView" class="view">
+        <div class="container">
+            <div class="form-container">
+                <h2>Complete Your Profile</h2>
+                <p style="text-align: center; color: var(--color-text-secondary); margin-bottom: 24px;">
+                    Help us calculate your personalized daily calorie goal
+                </p>
+                <form id="profileSetupForm" onsubmit="handleProfileSetup(event)">
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select class="form-input" id="profileGender" required>
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Height (cm)</label>
+                        <input type="number" class="form-input" id="profileHeight" required min="100" max="250" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Weight (kg)</label>
+                        <input type="number" class="form-input" id="profileWeight" required min="30" max="300" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="number" class="form-input" id="profileAge" required min="10" max="120">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Activity Level</label>
+                        <select class="form-input" id="profileActivity" required>
+                            <option value="">Select Activity Level</option>
+                            <option value="sedentary">Sedentary (little to no exercise)</option>
+                            <option value="lightly_active">Lightly Active (1-3 days/week)</option>
+                            <option value="moderately_active">Moderately Active (3-5 days/week)</option>
+                            <option value="very_active">Very Active (6-7 days/week)</option>
+                            <option value="extra_active">Extra Active (very hard exercise)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Complete Setup</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="recipesView" class="view">
+        <div class="container">
+            <h1 style="margin-bottom: 24px;">🍛 Recipe Recommendations</h1>
+            <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
+                Tell us what ingredients you have, and we'll suggest healthy Indian dishes for your calorie goal!
+            </p>
+            
+            <div class="section">
+                <h3 class="section-title">Available Ingredients</h3>
+                <div class="form-group">
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        id="ingredientInput" 
+                        placeholder="Enter ingredient (e.g., Rice, Chicken, Tomatoes)"
+                    >
+                </div>
+                <div id="selectedIngredients" class="ingredients-list"></div>
+                
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="addIngredient()">Add Ingredient</button>
+                    <button class="btn btn-secondary" onclick="clearIngredients()" style="margin-left: 12px;">Clear All</button>
+                </div>
+            </div>
+
+            <div class="section" id="recommendationsSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 class="section-title" style="margin: 0;">Recommended Dishes</h3>
+                    <button class="btn btn-secondary" onclick="clearIngredients()">🔄 Refresh & Clear</button>
+                </div>
+                <div id="recommendationsContainer"></div>
+            </div>
+
+            <div class="section" id="generateSection" style="display: none;">
+                <button class="btn btn-primary btn-full" onclick="generateRecommendations()">
+                    Generate Recipe Recommendations
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileView" class="view">
+        <div class="container">
+            <h1 style="margin-bottom: 24px;">⚙️ Profile Settings</h1>
+            <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
+                Update your profile to get personalized calorie recommendations
+            </p>
+            
+            <div class="section">
+                <h3 class="section-title">Current Calorie Goal</h3>
+                <div style="background: var(--color-primary); color: white; padding: 24px; border-radius: 8px; text-align: center; margin-bottom: 24px;">
+                    <div style="font-size: 48px; font-weight: bold;" id="currentCalorieGoal">2000</div>
+                    <div style="font-size: 16px; margin-top: 8px;">calories per day</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Update Your Profile</h3>
+                <form id="profileUpdateForm" onsubmit="handleProfileUpdate(event)">
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select class="form-input" id="profileGenderEdit" required>
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Height (cm)</label>
+                        <input type="number" class="form-input" id="profileHeightEdit" required min="100" max="250" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Weight (kg)</label>
+                        <input type="number" class="form-input" id="profileWeightEdit" required min="30" max="300" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="number" class="form-input" id="profileAgeEdit" required min="10" max="120">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Activity Level</label>
+                        <select class="form-input" id="profileActivityEdit" required>
+                            <option value="">Select Activity Level</option>
+                            <option value="sedentary">Sedentary (little to no exercise)</option>
+                            <option value="lightly_active">Lightly Active (1-3 days/week)</option>
+                            <option value="moderately_active">Moderately Active (3-5 days/week)</option>
+                            <option value="very_active">Very Active (6-7 days/week)</option>
+                            <option value="extra_active">Extra Active (very hard exercise)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Update Profile</button>
+                </form>
+                
+                <div style="margin-top: 24px; padding: 16px; background: var(--color-bg-secondary); border-radius: 8px;">
+                    <h4 style="margin-bottom: 12px; color: var(--color-primary);">ℹ️ How we calculate your calorie goal</h4>
+                    <p style="color: var(--color-text-secondary); font-size: 14px; line-height: 1.6;">
+                        We use the Mifflin-St Jeor equation to calculate your Basal Metabolic Rate (BMR), 
+                        then multiply it by your activity level to get your Total Daily Energy Expenditure (TDEE). 
+                        This is the number of calories you need to maintain your current weight.
+                    </p>
                 </div>
             </div>
         </div>

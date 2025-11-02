@@ -3,16 +3,21 @@
 // ====================================================================
 
 const API_BASE_URL = 'http://localhost:5000/api';
-const DAILY_CALORIE_GOAL = 2000; // Hardcoded goal for frontend display
 
 // Global state variables, retrieved from local/session storage on load
 let CURRENT_USER = JSON.parse(sessionStorage.getItem('fndb_currentUser')) || null;
 let AUTH_TOKEN = localStorage.getItem('fndb_token') || null;
+let USER_CALORIE_GOAL = 2000; // Will be fetched from backend
 
 // Food search state
 let activeRegionFilter = 'All';
 let currentSearchQuery = '';
 let selectedFood = null; // Food object selected for meal logging
+let selectedIngredients = JSON.parse(sessionStorage.getItem('fndb_selectedIngredients')) || []; // For recipe recommendations
+let currentRecommendations = JSON.parse(sessionStorage.getItem('fndb_recommendations')) || null; // Store recommendations
+
+// Dashboard date tracking
+let currentDashboardDate = new Date(); // Track which date is being viewed
 
 // ====================================================================
 // UTILITY FUNCTIONS (UI & Persistence)
@@ -73,6 +78,14 @@ function showView(viewId) {
     if (viewId === 'search') {
         renderFoodGrid();
     }
+    
+    if (viewId === 'recipes' && CURRENT_USER) {
+        setupRecipesView();
+    }
+    
+    if (viewId === 'profile' && CURRENT_USER) {
+        loadUserProfile();
+    }
 }
 
 /**
@@ -86,6 +99,8 @@ function updateNavBar() {
         menu.innerHTML = `
             <a class="nav-link" onclick="showView('dashboard')">Dashboard</a>
             <a class="nav-link" onclick="showView('search')">Food Database</a>
+            <a class="nav-link" onclick="showView('recipes')">Recipes</a>
+            <a class="nav-link" onclick="showView('profile')">Profile</a>
             <button class="btn btn-secondary" onclick="handleLogout()">Logout</button>
         `;
     } else {
@@ -103,6 +118,80 @@ function updateNavBar() {
  */
 function getTodayDate() {
     return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Format a date object to YYYY-MM-DD
+ */
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+/**
+ * Format date for display (e.g., "November 2, 2025")
+ */
+function formatDateDisplay(date) {
+    return date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+}
+
+/**
+ * Check if date is today
+ */
+function isToday(date) {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+}
+
+/**
+ * Navigate to previous day
+ */
+function navigatePreviousDay() {
+    currentDashboardDate.setDate(currentDashboardDate.getDate() - 1);
+    updateDashboardDate();
+    fetchDashboardData();
+}
+
+/**
+ * Navigate to next day
+ */
+function navigateNextDay() {
+    const today = new Date();
+    if (currentDashboardDate < today) {
+        currentDashboardDate.setDate(currentDashboardDate.getDate() + 1);
+        updateDashboardDate();
+        fetchDashboardData();
+    }
+}
+
+/**
+ * Go to today
+ */
+function goToToday() {
+    currentDashboardDate = new Date();
+    updateDashboardDate();
+    fetchDashboardData();
+}
+
+/**
+ * Update dashboard date display
+ */
+function updateDashboardDate() {
+    const dateDisplay = document.getElementById('currentDate');
+    const dateStr = formatDateDisplay(currentDashboardDate);
+    const todayBadge = isToday(currentDashboardDate) ? ' <span style="background: var(--color-primary); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">Today</span>' : '';
+    dateDisplay.innerHTML = dateStr + todayBadge;
+    
+    // Disable next button if viewing today
+    const nextBtn = document.getElementById('nextDayBtn');
+    if (nextBtn) {
+        nextBtn.disabled = isToday(currentDashboardDate);
+        nextBtn.style.opacity = isToday(currentDashboardDate) ? '0.5' : '1';
+    }
 }
 
 /**
@@ -179,7 +268,9 @@ async function handleLogin(event) {
         if (response.ok) {
             setAuthSession(data.token, data.user);
             showNotification(`Welcome back, ${data.user.username}!`, 'success');
-            showView('dashboard');
+            
+            // Check if user has completed profile setup
+            await checkAndRedirectProfile();
         } else {
             showNotification(data.error || 'Login failed. Invalid credentials.', 'error');
         }
@@ -206,7 +297,8 @@ function handleLogout() {
  */
 function setupDashboard() {
     document.getElementById('userName').textContent = CURRENT_USER.username;
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    currentDashboardDate = new Date(); // Reset to today when opening dashboard
+    updateDashboardDate();
     
     // Reset inputs on dashboard load
     document.getElementById('foodSearch').value = '';
@@ -221,7 +313,7 @@ function setupDashboard() {
 async function fetchDashboardData() {
     if (!AUTH_TOKEN) return showView('home');
 
-    const date = getTodayDate();
+    const date = formatDate(currentDashboardDate);
 
     // 1. Fetch Summary
     const summaryResponse = await fetch(`${API_BASE_URL}/meals/summary?date=${date}`, {
@@ -261,7 +353,7 @@ function renderDashboard(summary, logs) {
     document.getElementById('totalFat').textContent = totalFat;
 
     // 2. Update Calorie Goal Progress Bar
-    const goal = DAILY_CALORIE_GOAL;
+    const goal = USER_CALORIE_GOAL;
     const percentage = Math.min(100, (totalCalories / goal) * 100).toFixed(0);
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
@@ -524,11 +616,18 @@ async function renderFoodGrid() {
 
     try {
         const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const filteredFoods = await response.json();
+        
+        console.log('Fetched foods:', filteredFoods.length);
         
         foodGrid.innerHTML = '';
 
-        if (filteredFoods.length === 0) {
+        if (!Array.isArray(filteredFoods) || filteredFoods.length === 0) {
             foodGrid.innerHTML = `<div class="empty-state">No foods found matching the criteria.</div>`;
             return;
         }
@@ -565,7 +664,8 @@ async function renderFoodGrid() {
             foodGrid.appendChild(card);
         });
     } catch (error) {
-        foodGrid.innerHTML = `<div class="empty-state error">Error fetching food data. Check backend connection.</div>`;
+        console.error('Error fetching food data:', error);
+        foodGrid.innerHTML = `<div class="empty-state error">Error fetching food data: ${error.message}. Check backend connection and database.</div>`;
     }
 }
 
@@ -607,15 +707,329 @@ async function quickLog(food_id, foodName) {
 
 
 // ====================================================================
+// PROFILE MANAGEMENT
+// ====================================================================
+
+/**
+ * Checks if user has completed profile setup and redirects accordingly
+ */
+async function checkAndRedirectProfile() {
+    if (!AUTH_TOKEN) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+        });
+        
+        const profile = await response.json();
+        
+        // If user has a calorie goal, they've completed profile setup
+        if (profile.daily_calorie_goal && profile.daily_calorie_goal > 0) {
+            USER_CALORIE_GOAL = profile.daily_calorie_goal;
+            showView('dashboard');
+        } else {
+            // Redirect to profile setup
+            showView('profileSetup');
+        }
+    } catch (error) {
+        // On error, assume profile needs setup
+        showView('profileSetup');
+    }
+}
+
+/**
+ * Fetches and updates user's calorie goal from backend
+ */
+async function fetchUserCalorieGoal() {
+    if (!AUTH_TOKEN) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/calorie-goal`, {
+            headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            USER_CALORIE_GOAL = data.daily_calorie_goal || 2000;
+        }
+    } catch (error) {
+        console.error('Error fetching calorie goal:', error);
+    }
+}
+
+/**
+ * Handles profile setup form submission
+ */
+async function handleProfileSetup(event) {
+    event.preventDefault();
+    if (!AUTH_TOKEN) return;
+    
+    const gender = document.getElementById('profileGender').value;
+    const height = parseFloat(document.getElementById('profileHeight').value);
+    const weight = parseFloat(document.getElementById('profileWeight').value);
+    const age = parseInt(document.getElementById('profileAge').value);
+    const activity_level = document.getElementById('profileActivity').value;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AUTH_TOKEN}`
+            },
+            body: JSON.stringify({ gender, height, weight, age, activity_level })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            USER_CALORIE_GOAL = data.profile.daily_calorie_goal;
+            showNotification(`Profile updated! Your daily calorie goal is ${USER_CALORIE_GOAL} kcal`, 'success');
+            showView('dashboard');
+        } else {
+            showNotification(data.error || 'Failed to update profile', 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Failed to connect to backend.', 'error');
+    }
+}
+
+/**
+ * Loads user profile data into the profile view
+ */
+async function loadUserProfile() {
+    if (!AUTH_TOKEN) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+        });
+        
+        if (response.ok) {
+            const profile = await response.json();
+            
+            // Populate form fields
+            document.getElementById('profileGenderEdit').value = profile.gender || '';
+            document.getElementById('profileHeightEdit').value = profile.height || '';
+            document.getElementById('profileWeightEdit').value = profile.weight || '';
+            document.getElementById('profileAgeEdit').value = profile.age || '';
+            document.getElementById('profileActivityEdit').value = profile.activity_level || '';
+            
+            // Display current calorie goal
+            const calorieGoal = profile.daily_calorie_goal || 2000;
+            document.getElementById('currentCalorieGoal').textContent = calorieGoal;
+        }
+    } catch (error) {
+        console.error('Error loading profile:', error);
+    }
+}
+
+/**
+ * Handles profile update form submission
+ */
+async function handleProfileUpdate(event) {
+    event.preventDefault();
+    if (!AUTH_TOKEN) return;
+    
+    const gender = document.getElementById('profileGenderEdit').value;
+    const height = parseFloat(document.getElementById('profileHeightEdit').value);
+    const weight = parseFloat(document.getElementById('profileWeightEdit').value);
+    const age = parseInt(document.getElementById('profileAgeEdit').value);
+    const activity_level = document.getElementById('profileActivityEdit').value;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AUTH_TOKEN}`
+            },
+            body: JSON.stringify({ gender, height, weight, age, activity_level })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            USER_CALORIE_GOAL = data.profile.daily_calorie_goal;
+            document.getElementById('currentCalorieGoal').textContent = USER_CALORIE_GOAL;
+            showNotification(`Profile updated! Your daily calorie goal is ${USER_CALORIE_GOAL} kcal`, 'success');
+        } else {
+            showNotification(data.error || 'Failed to update profile', 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Failed to connect to backend.', 'error');
+    }
+}
+
+
+// ====================================================================
+// RECIPE RECOMMENDATIONS
+// ====================================================================
+
+/**
+ * Sets up the recipes view
+ */
+function setupRecipesView() {
+    // Don't reset if we have stored data
+    document.getElementById('ingredientInput').value = '';
+    renderIngredientList();
+    
+    // Restore recommendations if they exist
+    if (currentRecommendations && currentRecommendations.length > 0) {
+        displayRecommendations(currentRecommendations);
+    } else {
+        document.getElementById('recommendationsSection').style.display = 'none';
+    }
+}
+
+/**
+ * Renders the list of selected ingredients
+ */
+function renderIngredientList() {
+    const container = document.getElementById('selectedIngredients');
+    
+    if (selectedIngredients.length === 0) {
+        container.innerHTML = '<p style="color: var(--color-text-secondary); font-size: 14px;">No ingredients added yet</p>';
+        document.getElementById('generateSection').style.display = 'none';
+        return;
+    }
+    
+    container.innerHTML = selectedIngredients.map((ing, index) => `
+        <span class="ingredient-tag" onclick="removeIngredient(${index})">
+            ${ing} ×
+        </span>
+    `).join('');
+    document.getElementById('generateSection').style.display = 'block';
+}
+
+/**
+ * Adds an ingredient to the list
+ */
+function addIngredient() {
+    const input = document.getElementById('ingredientInput');
+    const ingredient = input.value.trim();
+    
+    if (ingredient && !selectedIngredients.includes(ingredient)) {
+        selectedIngredients.push(ingredient);
+        sessionStorage.setItem('fndb_selectedIngredients', JSON.stringify(selectedIngredients));
+        input.value = '';
+        renderIngredientList();
+    }
+}
+
+/**
+ * Removes an ingredient from the list
+ */
+function removeIngredient(index) {
+    selectedIngredients.splice(index, 1);
+    sessionStorage.setItem('fndb_selectedIngredients', JSON.stringify(selectedIngredients));
+    renderIngredientList();
+}
+
+/**
+ * Clears all ingredients
+ */
+function clearIngredients() {
+    selectedIngredients = [];
+    currentRecommendations = null;
+    sessionStorage.removeItem('fndb_selectedIngredients');
+    sessionStorage.removeItem('fndb_recommendations');
+    renderIngredientList();
+    document.getElementById('recommendationsSection').style.display = 'none';
+}
+
+/**
+ * Generates recipe recommendations using AI
+ */
+async function generateRecommendations() {
+    if (!AUTH_TOKEN || selectedIngredients.length === 0) return;
+    
+    if (USER_CALORIE_GOAL === 2000) {
+        // Fetch user calorie goal if not set
+        await fetchUserCalorieGoal();
+    }
+    
+    showNotification('Generating personalized recommendations...', 'success');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/recipes/recommendations`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${AUTH_TOKEN}`
+            },
+            body: JSON.stringify({ 
+                ingredients: selectedIngredients,
+                calorie_limit: USER_CALORIE_GOAL 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            displayRecommendations(data.recommendations);
+        } else {
+            showNotification(data.error || 'Failed to generate recommendations', 'error');
+        }
+    } catch (error) {
+        showNotification('Network error. Failed to connect to backend.', 'error');
+    }
+}
+
+/**
+ * Displays recipe recommendations
+ */
+function displayRecommendations(dishes) {
+    const container = document.getElementById('recommendationsContainer');
+    
+    // Store recommendations in state and sessionStorage
+    currentRecommendations = dishes;
+    sessionStorage.setItem('fndb_recommendations', JSON.stringify(dishes));
+    
+    container.innerHTML = dishes.map(dish => `
+        <div class="recipe-card">
+            <h4 style="margin-bottom: 8px; color: var(--color-primary);">${dish.name}</h4>
+            <p style="color: var(--color-text-secondary); font-size: 14px; margin-bottom: 8px;">
+                ${dish.description}
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <span style="background: var(--color-green-500); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    🔥 ${dish.calories} cal
+                </span>
+                <span style="background: var(--color-primary); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    ⏱️ ${dish.cooking_time}
+                </span>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <strong style="font-size: 13px;">Ingredients:</strong>
+                <p style="color: var(--color-text-secondary); font-size: 13px; margin-top: 4px;">
+                    ${dish.ingredients.join(', ')}
+                </p>
+            </div>
+            ${dish.video_link ? `
+                <a href="${dish.video_link}" target="_blank" class="btn btn-primary" style="width: 100%; margin-top: 8px;">
+                    ▶️ Watch Recipe Video
+                </a>
+            ` : '<p style="color: var(--color-text-secondary); font-size: 13px;">No video available</p>'}
+        </div>
+    `).join('');
+    
+    document.getElementById('recommendationsSection').style.display = 'block';
+    showNotification('Recommendations generated!', 'success');
+}
+
+
+// ====================================================================
 // INITIALIZATION
 // ====================================================================
 
 /**
  * Initializes the application on load.
  */
-function init() {
+async function init() {
     if (AUTH_TOKEN && CURRENT_USER) {
-        showView('dashboard');
+        await checkAndRedirectProfile();
+        await fetchUserCalorieGoal();
     } else {
         showView('home');
     }
