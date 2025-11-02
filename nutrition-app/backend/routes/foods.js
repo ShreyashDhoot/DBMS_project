@@ -28,8 +28,14 @@ router.get('/search', (req, res) => {
     params.push(region);
   }
   
+  console.log('Food search query:', query, 'params:', params);
+  
   db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json({ error: 'Server error' });
+    if (err) {
+      console.error('Food search error:', err);
+      return res.status(500).json({ error: 'Server error', details: err.message });
+    }
+    console.log(`Found ${results.length} food items`);
     res.json(results);
   });
 });

@@ -6,6 +6,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const foodRoutes = require('./routes/foods');
 const mealRoutes = require('./routes/meals');
+const recipeRoutes = require('./routes/recipes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +20,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/foods', foodRoutes);
 app.use('/api/meals', mealRoutes);
+app.use('/api/recipes', recipeRoutes);
 
 // Test route
 app.get('/', (req, res) => {

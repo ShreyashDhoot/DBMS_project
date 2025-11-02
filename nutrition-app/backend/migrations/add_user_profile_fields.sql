@@ -1,0 +1,8 @@
+-- Add profile fields to users table if they don't exist
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
+ADD COLUMN IF NOT EXISTS height DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS weight DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS age INT,
+ADD COLUMN IF NOT EXISTS activity_level VARCHAR(20),
+ADD COLUMN IF NOT EXISTS daily_calorie_goal INT DEFAULT 2000;
